@@ -4,25 +4,27 @@ import {
   Trophy,
   TrendingUp,
   Wallet,
-  Download,
   Zap,
-  Users,
   Key,
   DollarSign,
-  MessageSquare,
-  Upload,
-  UserX,
-  Lock,
-  Info,
   Coffee,
   Fuel,
   Gift,
   Droplet,
-  Settings,
-  UserCog,
   BarChart3,
-  Calendar,
   ChevronRight,
+  Smartphone,
+  Download,
+  UserX,
+  Search,
+  Activity,
+  UserPlus,
+  Users,
+  TrendingDown,
+  ShoppingBag,
+  Store,
+  CreditCard,
+  Phone,
 } from "lucide-react";
 
 import {
@@ -40,22 +42,38 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
+const appItems = [
+  { title: "App Downloader", url: "/app/downloader", icon: Download },
+  { title: "App Upgrade", url: "/app/upgrade", icon: TrendingUp },
+  { title: "App Churner", url: "/app/churner", icon: UserX },
+];
+
+const queryItems = [
+  { title: "Active Customers", url: "/query/active-customers", icon: Users },
+  { title: "Active New", url: "/query/active-new", icon: UserPlus },
+  { title: "Active Total", url: "/query/active-total", icon: Activity },
+  { title: "Gross Adds", url: "/query/gross-adds", icon: TrendingUp },
+  { title: "Active Existing", url: "/query/active-existing", icon: Users },
+  { title: "Non-Gross Adds", url: "/query/non-gross-adds", icon: TrendingDown },
+  { title: "Active Micro Merchants", url: "/query/micro-merchants", icon: ShoppingBag },
+  { title: "Active Unified Merchants", url: "/query/unified-merchants", icon: Store },
+  { title: "Active Transacting Total", url: "/query/transacting-total", icon: CreditCard },
+  { title: "Active New Transacting", url: "/query/new-transacting", icon: CreditCard },
+  { title: "Active Existing", url: "/query/existing-transacting", icon: CreditCard },
+  { title: "App Downloads", url: "/query/app-downloads", icon: Download },
+  { title: "Active App Users", url: "/query/active-app-users", icon: Smartphone },
+  { title: "App Transacting", url: "/query/app-transacting", icon: CreditCard },
+];
+
 const rewardCampaigns = [
   { title: "Win Back Churner", url: "/campaign/win-back-churner", icon: TrendingUp },
   { title: "CBE Campaign", url: "/campaign/cbe", icon: Trophy },
   { title: "Micro Cash", url: "/campaign/micro-cash", icon: Wallet },
-  { title: "App Download", url: "/campaign/app-download", icon: Download },
   { title: "30% Airtime Bonus", url: "/campaign/airtime-bonus", icon: Zap },
-  { title: "App Churner", url: "/campaign/app-churner", icon: Users },
   { title: "PIN Reset", url: "/campaign/pin-reset", icon: Key },
   { title: "Case In", url: "/campaign/case-in", icon: DollarSign },
-];
-
-const infoCampaigns = [
-  { title: "App Upgrade", url: "/campaign/app-upgrade", icon: Upload },
-  { title: "Airtime Advance", url: "/campaign/airtime-advance", icon: MessageSquare },
-  { title: "Unutilized Customers", url: "/campaign/unutilized", icon: UserX },
-  { title: "USSD Password Push", url: "/campaign/ussd-password", icon: Lock },
+  { title: "GA Flow Up", url: "/campaign/ga-flow-up", icon: TrendingUp },
+  { title: "Airtime Advance", url: "/campaign/airtime-advance", icon: Phone },
 ];
 
 const merchantCampaigns = [
@@ -63,13 +81,6 @@ const merchantCampaigns = [
   { title: "Fuel Cashback", url: "/campaign/fuel", icon: Fuel },
   { title: "Cashier Incentive", url: "/campaign/cashier", icon: Gift },
   { title: "EEU & Water Cashback", url: "/campaign/eeu-water", icon: Droplet },
-];
-
-const adminItems = [
-  { title: "Campaign Setup", url: "/admin/setup", icon: Settings },
-  { title: "User Management", url: "/admin/users", icon: UserCog },
-  { title: "System Configuration", url: "/admin/config", icon: Settings },
-  { title: "Report Scheduler", url: "/admin/reports", icon: Calendar },
 ];
 
 export function AppSidebar() {
@@ -91,6 +102,58 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
+              <Collapsible asChild defaultOpen className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className="text-sidebar-primary">
+                      <Smartphone className="h-4 w-4" />
+                      <span>App</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {appItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
+                            <NavLink to={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </NavLink>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              <Collapsible asChild defaultOpen className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className="text-info">
+                      <Search className="h-4 w-4" />
+                      <span>Query</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {queryItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
+                            <NavLink to={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </NavLink>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
               <Collapsible asChild defaultOpen className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
@@ -120,32 +183,6 @@ export function AppSidebar() {
               <Collapsible asChild defaultOpen className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="text-info">
-                      <Info className="h-4 w-4" />
-                      <span>Info Campaigns</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {infoCampaigns.map((item) => (
-                        <SidebarMenuSubItem key={item.title}>
-                          <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
-                            <NavLink to={item.url}>
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.title}</span>
-                            </NavLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-
-              <Collapsible asChild defaultOpen className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
                     <SidebarMenuButton className="text-accent">
                       <Coffee className="h-4 w-4" />
                       <span>Merchant Campaigns</span>
@@ -155,32 +192,6 @@ export function AppSidebar() {
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {merchantCampaigns.map((item) => (
-                        <SidebarMenuSubItem key={item.title}>
-                          <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
-                            <NavLink to={item.url}>
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.title}</span>
-                            </NavLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-
-              <Collapsible asChild defaultOpen className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="text-muted-foreground">
-                      <Settings className="h-4 w-4" />
-                      <span>Administrative</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {adminItems.map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
                             <NavLink to={item.url}>
