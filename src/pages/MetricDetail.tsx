@@ -19,6 +19,7 @@ const metricTitles: Record<string, string> = {
   "active-total": "Active Total",
   "active-new": "Active New",
   "active-existing": "Active Existing",
+  "active-total-transacting": "Active Total Transacting",
   "active-existing-transacting": "Active Existing Transacting",
   "active-new-transacting": "Active New Transacting",
   "active-micro-merchants": "Active Micro Merchants",
@@ -39,6 +40,10 @@ const metricApiEndpoints: Record<string, { cardView: string; data: string }> = {
   "active-new": {
     cardView: "/api/new-customers/card-view",
     data: "/api/new-customers/data",
+  },
+  "active-existing": {
+    cardView: "/api/active-existing/card-view",
+    data: "/api/active-existing/data",
   },
 };
 
