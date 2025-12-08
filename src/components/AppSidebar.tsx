@@ -21,6 +21,7 @@ const metrics = [
   { title: "Active Total", url: "/metric/active-total", icon: TrendingUp },
   { title: "Active New", url: "/metric/active-new", icon: UserPlus },
   { title: "Active Existing", url: "/metric/active-existing", icon: Users },
+  { title: "Active Total Transacting", url: "/metric/active-total-transacting", icon: TrendingUp },
   { title: "Active Existing Transacting", url: "/metric/active-existing-transacting", icon: TrendingUp },
   { title: "Active New Transacting", url: "/metric/active-new-transacting", icon: UserPlus },
   { title: "Active Micro Merchants", url: "/metric/active-micro-merchants", icon: Users },
