@@ -31,7 +31,7 @@ const metrics: MetricConfig[] = [
   { title: "App Downloads", slug: "app-downloads", icon: Download, color: "chart-5" },
   { title: "Non-Gross Adds", slug: "non-gross-adds", icon: UserMinus, color: "chart-1" },
   { title: "Gross Adds", slug: "gross-adds", icon: UserPlus, color: "chart-2" },
-  { title: "Top Up", slug: "top-up", icon: ArrowUpCircle, color: "chart-3" },
+  
 ];
 
 interface CardData {
