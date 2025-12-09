@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -194,6 +195,27 @@ export default function MetricDetail() {
   const mean = chartPeriod === "30-day" && displayChartData.length > 0 
     ? displayChartData.reduce((acc, d) => acc + d.value, 0) / displayChartData.length 
     : null;
+
+  // Export to Excel function
+  const handleExportExcel = () => {
+    const exportData = displayChartData.map((row) => ({
+      Date: row.date,
+      Value: row.value,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, metricTitle);
+
+    // Generate filename with metric name and date
+    const filename = `${metricTitle.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+
+    toast({
+      title: "Export successful",
+      description: `Data exported to ${filename}`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -404,8 +426,15 @@ export default function MetricDetail() {
 
             <TabsContent value="table" className="space-y-4">
               <div className="flex justify-end">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleExportExcel}
+                  disabled={displayChartData.length === 0}
+                  className="gap-2"
+                >
                   <Download className="h-4 w-4" />
+                  Export Excel
                 </Button>
               </div>
               {loadingChart ? (
