@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Download, Calendar as CalendarIcon, Loader2, RefreshCw } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -389,7 +389,14 @@ export default function MetricDetail() {
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
                     {mean && <ReferenceLine y={mean} stroke="hsl(var(--accent))" strokeDasharray="3 3" label="Mean" />}
-                    <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]}>
+                      <LabelList 
+                        dataKey="value" 
+                        position="top" 
+                        formatter={(value: number) => value.toLocaleString()}
+                        style={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
