@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Link, Calendar, Users, Clock, DollarSign, Target, Rocket, Gift, Smartphone, CreditCard, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Link, Calendar, Users, Clock, DollarSign, Target, Rocket, Gift, Smartphone, CreditCard, X, Database, Copy, Plus, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TableConfig {
@@ -23,16 +24,23 @@ interface TableStatus {
   parameters: string;
 }
 
+interface JoinConfig {
+  id: string;
+  tableId: string;
+  joinType: "JOIN" | "LEFT JOIN";
+  joinKey: string;
+}
+
 const availableTables = [
-  { id: "vlr", label: "VLR ATTACHMENT", icon: Link, borderColor: "border-l-blue-500" },
-  { id: "registered", label: "REGISTERED BEFORE", icon: Calendar, borderColor: "border-l-purple-500" },
-  { id: "active", label: "ACTIVE USERS", icon: Users, borderColor: "border-l-green-500" },
-  { id: "inactive", label: "INACTIVE USERS", icon: Clock, borderColor: "border-l-orange-500" },
-  { id: "balance", label: "BALANCE THRESHOLD", icon: DollarSign, borderColor: "border-l-yellow-500" },
-  { id: "targeted", label: "TARGETED USERS", icon: Target, borderColor: "border-l-red-500" },
-  { id: "rewarded", label: "REWARDED", icon: Gift, borderColor: "border-l-pink-500" },
-  { id: "gsm", label: "GSM USAGE", icon: Smartphone, borderColor: "border-l-cyan-500" },
-  { id: "topup", label: "MPESA TOP UP", icon: CreditCard, borderColor: "border-l-indigo-500" },
+  { id: "vlr", label: "VLR ATTACHMENT", icon: Link, borderColor: "border-l-blue-500", alias: "vlr" },
+  { id: "registered", label: "REGISTERED BEFORE", icon: Calendar, borderColor: "border-l-purple-500", alias: "reg" },
+  { id: "active", label: "ACTIVE USERS", icon: Users, borderColor: "border-l-green-500", alias: "act" },
+  { id: "inactive", label: "INACTIVE USERS", icon: Clock, borderColor: "border-l-orange-500", alias: "inact" },
+  { id: "balance", label: "BALANCE THRESHOLD", icon: DollarSign, borderColor: "border-l-yellow-500", alias: "bal" },
+  { id: "targeted", label: "TARGETED USERS", icon: Target, borderColor: "border-l-red-500", alias: "tgt" },
+  { id: "rewarded", label: "REWARDED", icon: Gift, borderColor: "border-l-pink-500", alias: "rwd" },
+  { id: "gsm", label: "GSM USAGE", icon: Smartphone, borderColor: "border-l-cyan-500", alias: "gsm" },
+  { id: "topup", label: "MPESA TOP UP", icon: CreditCard, borderColor: "border-l-indigo-500", alias: "topup" },
 ];
 
 export default function BasePreparation() {
@@ -43,6 +51,11 @@ export default function BasePreparation() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [startTime, setStartTime] = useState<number>(0);
   const [tableStatuses, setTableStatuses] = useState<TableStatus[]>([]);
+  
+  // SQL Builder state
+  const [baseTable, setBaseTable] = useState<string>("");
+  const [joins, setJoins] = useState<JoinConfig[]>([]);
+  const [generatedSQL, setGeneratedSQL] = useState<string>("");
 
   const handleAddTable = () => {
     if (!selectedTableId) return;
@@ -175,9 +188,88 @@ export default function BasePreparation() {
     }
   };
 
+  // SQL Builder functions
+  const addJoin = () => {
+    const newJoin: JoinConfig = {
+      id: `join_${Date.now()}`,
+      tableId: "",
+      joinType: "JOIN",
+      joinKey: "msisdn",
+    };
+    setJoins([...joins, newJoin]);
+  };
+
+  const removeJoin = (joinId: string) => {
+    setJoins(joins.filter(j => j.id !== joinId));
+  };
+
+  const updateJoin = (joinId: string, field: keyof JoinConfig, value: string) => {
+    setJoins(joins.map(j => 
+      j.id === joinId ? { ...j, [field]: value } : j
+    ));
+  };
+
+  const generateSQL = () => {
+    if (!baseTable) {
+      toast({
+        title: "Select Base Table",
+        description: "Please select a base table first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const baseTableData = availableTables.find(t => t.id === baseTable);
+    if (!baseTableData) return;
+
+    const baseTableName = `${baseTableData.label.replace(/ /g, "_")}_${postfix}`;
+    const baseAlias = baseTableData.alias;
+
+    let sql = `SELECT \n  ${baseAlias}.*`;
+    
+    // Add selected columns from joined tables
+    joins.forEach(join => {
+      const joinTable = availableTables.find(t => t.id === join.tableId);
+      if (joinTable) {
+        sql += `,\n  ${joinTable.alias}.*`;
+      }
+    });
+
+    sql += `\nFROM ${baseTableName} ${baseAlias}`;
+
+    // Add joins
+    joins.forEach(join => {
+      const joinTable = availableTables.find(t => t.id === join.tableId);
+      if (joinTable && join.joinKey) {
+        const joinTableName = `${joinTable.label.replace(/ /g, "_")}_${postfix}`;
+        sql += `\n${join.joinType} ${joinTableName} ${joinTable.alias}`;
+        sql += `\n  ON ${baseAlias}.${join.joinKey} = ${joinTable.alias}.${join.joinKey}`;
+      }
+    });
+
+    sql += ";";
+    setGeneratedSQL(sql);
+    
+    toast({
+      title: "SQL Generated",
+      description: "Your SQL query has been generated successfully.",
+    });
+  };
+
+  const copySQL = () => {
+    navigator.clipboard.writeText(generatedSQL);
+    toast({
+      title: "Copied!",
+      description: "SQL copied to clipboard.",
+    });
+  };
+
   const completedTables = tableStatuses.filter(t => t.status === "completed").length;
   const availableToSelect = availableTables.filter(
     table => !selectedTables.some(st => st.id === table.id)
+  );
+  const availableForJoin = availableTables.filter(
+    table => table.id !== baseTable && !joins.some(j => j.tableId === table.id)
   );
 
   return (
@@ -375,6 +467,176 @@ export default function BasePreparation() {
               </CardContent>
             </Card>
           )}
+
+          {/* SQL Builder Section */}
+          <Card className="border-2 shadow-elegant">
+            <CardHeader className="border-b bg-gradient-to-r from-cyan-500/10 to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                SQL JOIN BUILDER
+              </CardTitle>
+              <CardDescription>Create custom SQL queries by combining tables with different join types</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Base Table Selection */}
+              <div>
+                <Label className="text-base font-semibold">Base Table (FROM)</Label>
+                <Select value={baseTable} onValueChange={setBaseTable}>
+                  <SelectTrigger className="mt-2 bg-background">
+                    <SelectValue placeholder="Select base table..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {availableTables.map(table => (
+                      <SelectItem key={table.id} value={table.id}>
+                        {table.label}_{postfix}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Add Join Button */}
+              {baseTable && (
+                <Button 
+                  variant="outline" 
+                  onClick={addJoin}
+                  disabled={availableForJoin.length === 0}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Join
+                </Button>
+              )}
+
+              {/* Join Cards */}
+              {joins.length > 0 && (
+                <div className="space-y-4">
+                  {joins.map((join, index) => {
+                    const joinTable = availableTables.find(t => t.id === join.tableId);
+                    return (
+                      <Card key={join.id} className={`border-l-4 ${join.joinType === "LEFT JOIN" ? "border-l-orange-500" : "border-l-green-500"}`}>
+                        <CardContent className="pt-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {/* Join Type */}
+                              <div>
+                                <Label className="text-sm">Join Type</Label>
+                                <Select 
+                                  value={join.joinType} 
+                                  onValueChange={(value) => updateJoin(join.id, "joinType", value as "JOIN" | "LEFT JOIN")}
+                                >
+                                  <SelectTrigger className="mt-1 bg-background">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-background z-50">
+                                    <SelectItem value="JOIN">
+                                      <span className="flex items-center gap-2">
+                                        <Badge className="bg-green-500 text-xs">INNER JOIN</Badge>
+                                      </span>
+                                    </SelectItem>
+                                    <SelectItem value="LEFT JOIN">
+                                      <span className="flex items-center gap-2">
+                                        <Badge className="bg-orange-500 text-xs">LEFT JOIN</Badge>
+                                      </span>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {/* Table Selection */}
+                              <div>
+                                <Label className="text-sm">Table</Label>
+                                <Select 
+                                  value={join.tableId} 
+                                  onValueChange={(value) => updateJoin(join.id, "tableId", value)}
+                                >
+                                  <SelectTrigger className="mt-1 bg-background">
+                                    <SelectValue placeholder="Select table..." />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-background z-50">
+                                    {availableTables
+                                      .filter(t => t.id !== baseTable && !joins.some(j => j.id !== join.id && j.tableId === t.id))
+                                      .map(table => (
+                                        <SelectItem key={table.id} value={table.id}>
+                                          {table.label}_{postfix}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {/* Join Key */}
+                              <div>
+                                <Label className="text-sm">Join Key</Label>
+                                <Input 
+                                  value={join.joinKey}
+                                  onChange={(e) => updateJoin(join.id, "joinKey", e.target.value)}
+                                  placeholder="e.g., msisdn"
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => removeJoin(join.id)}
+                              className="mt-6"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          {/* Visual Join Indicator */}
+                          {joinTable && (
+                            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                              <Badge variant="outline">{availableTables.find(t => t.id === baseTable)?.alias}</Badge>
+                              <ArrowRight className="h-4 w-4" />
+                              <Badge variant="outline" className={join.joinType === "LEFT JOIN" ? "border-orange-500" : "border-green-500"}>
+                                {join.joinType}
+                              </Badge>
+                              <ArrowRight className="h-4 w-4" />
+                              <Badge variant="outline">{joinTable.alias}</Badge>
+                              <span className="ml-2">ON {join.joinKey}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Generate SQL Button */}
+              {baseTable && (
+                <Button 
+                  onClick={generateSQL}
+                  className="w-full gap-2"
+                >
+                  <Database className="h-4 w-4" />
+                  Generate SQL
+                </Button>
+              )}
+
+              {/* Generated SQL Output */}
+              {generatedSQL && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Generated SQL</Label>
+                    <Button variant="outline" size="sm" onClick={copySQL} className="gap-2">
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                  <Textarea 
+                    value={generatedSQL}
+                    readOnly
+                    className="font-mono text-sm min-h-[200px] bg-muted/50"
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
