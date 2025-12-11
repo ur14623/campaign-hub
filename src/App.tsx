@@ -9,6 +9,8 @@ import MainLayout from "./pages/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import MetricDetail from "./pages/MetricDetail";
 import BasePreparation from "./pages/BasePreparation";
+import CBECampaign from "./pages/campaigns/CBECampaign";
+import WinbackChurner from "./pages/campaigns/WinbackChurner";
 import CourtIssue from "./pages/ops-support/CourtIssue";
 import DormantList from "./pages/ops-support/DormantList";
 import Pinlock from "./pages/ops-support/Pinlock";
@@ -34,7 +36,8 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="metric/:metricId" element={<MetricDetail />} />
               <Route path="base-preparation" element={<BasePreparation />} />
-              <Route path="campaign-management" element={<Dashboard />} />
+              <Route path="campaigns/cbe" element={<CBECampaign />} />
+              <Route path="campaigns/winback" element={<WinbackChurner />} />
               <Route path="ops-support/court-issue" element={<CourtIssue />} />
               <Route path="ops-support/dormant-list" element={<DormantList />} />
               <Route path="ops-support/pinlock" element={<Pinlock />} />
