@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, Users, Smartphone, Download, UserPlus, UserMinus, ArrowUpCircle, ChevronRight, Database, Settings, Megaphone, Headphones, Gavel, Moon, Lock, Building2, RefreshCw, KeyRound, BarChart3 } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Users, Smartphone, Download, UserPlus, UserMinus, ArrowUpCircle, ChevronRight, Database, Settings, Megaphone, Headphones, Gavel, Moon, Lock, Building2, RefreshCw, KeyRound, BarChart3, FileCode } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -157,6 +157,14 @@ export function AppSidebar() {
                             <NavLink to="/campaigns/winback" className="relative z-10" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
                               <RefreshCw className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
                               <span className="text-xs">Winback Churner</span>
+                            </NavLink>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem className="animate-fade-in">
+                          <SidebarMenuSubButton asChild className="group relative overflow-hidden hover:bg-sidebar-accent/80 transition-all duration-300">
+                            <NavLink to="/campaigns/sql-library" className="relative z-10" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                              <FileCode className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+                              <span className="text-xs">SQL Query Library</span>
                             </NavLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
