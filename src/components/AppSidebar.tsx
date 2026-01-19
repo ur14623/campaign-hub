@@ -1,4 +1,4 @@
-import { LayoutDashboard, ChevronRight, Database, Headphones, Gavel, FileCode2, Table2, ListTodo, Users, TrendingUp, Trash2, Wallet, Lock, ArrowRightLeft, UserCheck, Moon, Key } from "lucide-react";
+import { LayoutDashboard, ChevronRight, Database, Headphones, Gavel, FileCode2, Table2, ListTodo, Users, TrendingUp, Trash2, Wallet, Lock, ArrowRightLeft, UserCheck, Moon, Key, KeyRound, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -21,6 +21,8 @@ const opsSupportItems = [
 
 const cvmItems = [
   { title: "GA Flow Up", url: "/cvm/ga-flow-up", icon: TrendingUp },
+  { title: "Droper Tracking", url: "/cvm/droper-tracking", icon: Activity },
+  { title: "PIN Reset", url: "/cvm/pin-reset", icon: KeyRound },
   { title: "DROPER", url: "/cvm/droper", icon: Trash2 },
   { title: "Unutilized Balance", url: "/cvm/unutilized-balance", icon: Wallet },
   { title: "NOT PIN SETER", url: "/cvm/not-pin-seter", icon: Key },

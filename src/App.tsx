@@ -27,6 +27,7 @@ import TaskManager from "./pages/TaskManager";
 import CVMFlowPage from "./pages/cvm/CVMFlowPage";
 import GAFlowManagement from "./pages/cvm/GAFlowManagement";
 import DroperTracking from "./pages/cvm/DroperTracking";
+import PinResetTracking from "./pages/cvm/PinResetTracking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="task-manager" element={<TaskManager />} />
               <Route path="cvm/ga-flow-up" element={<GAFlowManagement />} />
               <Route path="cvm/droper-tracking" element={<DroperTracking />} />
+              <Route path="cvm/pin-reset" element={<PinResetTracking />} />
               <Route path="cvm/:flowType" element={<CVMFlowPage />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
