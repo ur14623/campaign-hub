@@ -1,42 +1,65 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, login as loginApi, LoginCredentials } from '@/lib/authApi';
 
 interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  isLoading: boolean;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const VALID_CREDENTIALS = {
-  username: 'admin',
-  password: 'cvm_portal'
-};
+const SESSION_TOKEN_KEY = 'session_token';
+const USER_KEY = 'user';
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('isAuthenticated') === 'true';
-  });
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('isAuthenticated', String(isAuthenticated));
-  }, [isAuthenticated]);
-
-  const login = (username: string, password: string): boolean => {
-    if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
-      setIsAuthenticated(true);
-      return true;
+    // Check for existing session on mount
+    const storedToken = localStorage.getItem(SESSION_TOKEN_KEY);
+    const storedUser = localStorage.getItem(USER_KEY);
+    
+    if (storedToken && storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem(SESSION_TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+      }
     }
-    return false;
+    setIsLoading(false);
+  }, []);
+
+  const login = async (credentials: LoginCredentials) => {
+    const response = await loginApi(credentials);
+    
+    if (response.success) {
+      localStorage.setItem(SESSION_TOKEN_KEY, response.session_token);
+      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+      setUser(response.user);
+    } else {
+      throw new Error(response.message || 'Login failed');
+    }
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,33 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gavel, CalendarIcon, Search, Download } from "lucide-react";
+import { Gavel, CalendarIcon, Search, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-interface CourtIssueResult {
-  ORD_ENDTIME: string;
-  ORDERID: string;
-  DS_CUSTOMER_MSISDN: string;
-  ORD_REASON_TYPE_NAME: string;
-  ORD_INITIATOR_MNEMONIC: string;
-  TX_CREDIT_PARTY_IDENTIFIER: string;
-  TX_DEBIT_PARTY_IDENTIFIER: string;
-  ORD_RECEIVER_MNEMONIC: string;
-  DS_ORD_TXN_TYPE_NAME: string;
-  AMOUNT: number;
-  ACCOUNT: string;
+const API_BASE_URL = "http://localhost:5000";
+
+interface PaginationInfo {
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_transactions: number;
+  returned_transactions: number;
 }
 
 export default function CourtIssue() {
   const [msisdn, setMsisdn] = useState("");
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
-  const [results, setResults] = useState<CourtIssueResult[]>([]);
+  const [results, setResults] = useState<Record<string, unknown>[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  const handleSearch = () => {
+  const handleSearch = async (page: number = 1) => {
     if (!msisdn) {
       toast({
         title: "Validation Error",
@@ -51,29 +51,64 @@ export default function CourtIssue() {
     }
     
     setIsSearching(true);
-    // Simulate backend response with mock data
-    setTimeout(() => {
-      setResults([
-        {
-          ORD_ENDTIME: "2025-02-03 13:29:51.000",
-          ORDERID: "TB30O0QLEU",
-          DS_CUSTOMER_MSISDN: "251705800721",
-          ORD_REASON_TYPE_NAME: "Customer Transfer",
-          ORD_INITIATOR_MNEMONIC: "251705800721 - Yenensh Mamush Azene",
-          TX_CREDIT_PARTY_IDENTIFIER: "251707452670",
-          TX_DEBIT_PARTY_IDENTIFIER: "251705800721",
-          ORD_RECEIVER_MNEMONIC: "251707452670 - Haile Buta Tona",
-          DS_ORD_TXN_TYPE_NAME: "P2P",
-          AMOUNT: 25790,
-          ACCOUNT: "251705800721",
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mpesa/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
-      setIsSearching(false);
-      toast({
-        title: "Search Complete",
-        description: `Found results for MSISDN: ${msisdn}`,
+        body: JSON.stringify({
+          msisdn: msisdn,
+          date_from: format(fromDate, "yyyy-MM-dd"),
+          date_to: format(toDate, "yyyy-MM-dd"),
+          page: page,
+          page_size: 50,
+        }),
       });
-    }, 1000);
+
+      const data = await response.json();
+
+      if (data.success) {
+        const responseData = data.data || [];
+        setResults(responseData);
+        
+        // Extract columns dynamically from the first result
+        if (responseData.length > 0) {
+          setColumns(Object.keys(responseData[0]));
+        } else {
+          setColumns([]);
+        }
+        
+        setPagination(data.pagination || null);
+        setCurrentPage(page);
+        setExecutionTime(data.execution_time_seconds || null);
+        toast({
+          title: "Search Complete",
+          description: `Found ${data.transaction_count || data.pagination?.total_transactions || 0} transactions for MSISDN: ${msisdn}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to fetch transaction data",
+          variant: "destructive",
+        });
+        setResults([]);
+        setColumns([]);
+        setPagination(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to the server",
+        variant: "destructive",
+      });
+      setResults([]);
+      setColumns([]);
+      setPagination(null);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const exportToCSV = () => {
@@ -86,23 +121,17 @@ export default function CourtIssue() {
       return;
     }
 
-    const headers = [
-      "ORD_ENDTIME", "ORDERID", "DS_CUSTOMER_MSISDN", "ORD_REASON_TYPE_NAME",
-      "ORD_INITIATOR_MNEMONIC", "TX_CREDIT_PARTY_IDENTIFIER", "TX_DEBIT_PARTY_IDENTIFIER",
-      "ORD_RECEIVER_MNEMONIC", "DS_ORD_TXN_TYPE_NAME", "AMOUNT", "ACCOUNT"
-    ];
-    
     const csvContent = [
-      headers.join(","),
+      columns.join(","),
       ...results.map(row => 
-        headers.map(header => `"${row[header as keyof CourtIssueResult]}"`).join(",")
+        columns.map(col => `"${row[col] ?? ""}"`).join(",")
       )
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `court_issue_${msisdn}_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.download = `mpesa_transactions_${msisdn}_${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
     
     toast({
@@ -112,8 +141,8 @@ export default function CourtIssue() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 w-full">
+      <div className="w-full p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Court Issue
@@ -134,7 +163,7 @@ export default function CourtIssue() {
               <Label htmlFor="msisdn">MSISDN</Label>
               <Input
                 id="msisdn"
-                placeholder="Enter MSISDN"
+                placeholder="Enter MSISDN (e.g., 911234567)"
                 value={msisdn}
                 onChange={(e) => setMsisdn(e.target.value)}
               />
@@ -196,8 +225,12 @@ export default function CourtIssue() {
               </div>
             </div>
 
-            <Button onClick={handleSearch} disabled={isSearching} className="w-full md:w-auto">
-              <Search className="mr-2 h-4 w-4" />
+            <Button onClick={() => handleSearch(1)} disabled={isSearching} className="w-full md:w-auto">
+              {isSearching ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
               {isSearching ? "Searching..." : "Search"}
             </Button>
           </CardContent>
@@ -208,7 +241,12 @@ export default function CourtIssue() {
             <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Search Results</CardTitle>
-                <CardDescription>{results.length} record(s) found</CardDescription>
+                <CardDescription>
+                  {pagination 
+                    ? `Showing ${pagination.returned_transactions} of ${pagination.total_transactions} transactions`
+                    : `${results.length} record(s) found`}
+                  {executionTime && ` • Executed in ${executionTime.toFixed(2)}s`}
+                </CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={exportToCSV}>
                 <Download className="mr-2 h-4 w-4" />
@@ -220,38 +258,50 @@ export default function CourtIssue() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ORD_ENDTIME</TableHead>
-                      <TableHead>ORDERID</TableHead>
-                      <TableHead>DS_CUSTOMER_MSISDN</TableHead>
-                      <TableHead>ORD_REASON_TYPE_NAME</TableHead>
-                      <TableHead>ORD_INITIATOR_MNEMONIC</TableHead>
-                      <TableHead>TX_CREDIT_PARTY_IDENTIFIER</TableHead>
-                      <TableHead>TX_DEBIT_PARTY_IDENTIFIER</TableHead>
-                      <TableHead>ORD_RECEIVER_MNEMONIC</TableHead>
-                      <TableHead>DS_ORD_TXN_TYPE_NAME</TableHead>
-                      <TableHead>AMOUNT</TableHead>
-                      <TableHead>ACCOUNT</TableHead>
+                      {columns.map((col) => (
+                        <TableHead key={col}>{col}</TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {results.map((row, index) => (
                       <TableRow key={index}>
-                        <TableCell className="whitespace-nowrap">{row.ORD_ENDTIME}</TableCell>
-                        <TableCell>{row.ORDERID}</TableCell>
-                        <TableCell>{row.DS_CUSTOMER_MSISDN}</TableCell>
-                        <TableCell>{row.ORD_REASON_TYPE_NAME}</TableCell>
-                        <TableCell className="whitespace-nowrap">{row.ORD_INITIATOR_MNEMONIC}</TableCell>
-                        <TableCell>{row.TX_CREDIT_PARTY_IDENTIFIER}</TableCell>
-                        <TableCell>{row.TX_DEBIT_PARTY_IDENTIFIER}</TableCell>
-                        <TableCell className="whitespace-nowrap">{row.ORD_RECEIVER_MNEMONIC}</TableCell>
-                        <TableCell>{row.DS_ORD_TXN_TYPE_NAME}</TableCell>
-                        <TableCell>{row.AMOUNT.toLocaleString()}</TableCell>
-                        <TableCell>{row.ACCOUNT}</TableCell>
+                        {columns.map((col) => (
+                          <TableCell key={col} className="whitespace-nowrap">
+                            {typeof row[col] === 'number' 
+                              ? (row[col] as number).toLocaleString() 
+                              : String(row[col] ?? "")}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
+
+              {pagination && pagination.total_pages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1 || isSearching}
+                    onClick={() => handleSearch(currentPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {pagination.total_pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === pagination.total_pages || isSearching}
+                    onClick={() => handleSearch(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

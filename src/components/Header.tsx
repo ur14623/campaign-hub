@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export function Header() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -24,10 +24,13 @@ export function Header() {
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger className="text-sm hover:text-primary transition-colors cursor-pointer outline-none px-3 py-2 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20">
-          <span className="font-semibold text-foreground">Admin</span>
+          <span className="font-semibold text-foreground">{user?.full_name || 'User'}</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36 bg-card border-border/50 shadow-card">
-          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/20">
+        <DropdownMenuContent align="end" className="w-48 bg-card border-border/50 shadow-card">
+          <DropdownMenuItem 
+            className="cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/20"
+            onClick={handleLogout}
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </DropdownMenuItem>

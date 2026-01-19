@@ -4,34 +4,43 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import MainLayout from "./pages/MainLayout";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import MetricDetail from "./pages/MetricDetail";
 import BasePreparation from "./pages/BasePreparation";
 import TableDetailPage from "./pages/base-preparation/TableDetailPage";
-import CBECampaign from "./pages/campaigns/CBECampaign";
-import WinbackChurner from "./pages/campaigns/WinbackChurner";
-import PinReset from "./pages/campaigns/PinReset";
-import SQLQueryLibrary from "./pages/campaigns/SQLQueryLibrary";
+import MySchemaPage from "./pages/tables/MySchemaPage";
+import SavedTablesPage from "./pages/tables/SavedTablesPage";
+import TableViewPage from "./pages/tables/TableViewPage";
 import CourtIssue from "./pages/ops-support/CourtIssue";
 import DormantList from "./pages/ops-support/DormantList";
-import DormantListPerformance from "./pages/ops-support/DormantListPerformance";
 import Pinlock from "./pages/ops-support/Pinlock";
-import Login from "./pages/Login";
+import SQLQueryLibrary from "./pages/SQLQueryLibrary";
+import SQLQueryDetail from "./pages/SQLQueryDetail";
+import CCBECampaign from "./pages/campaigns/CCBECampaign";
+import GAPinResetCampaign from "./pages/campaigns/GAPinResetCampaign";
+import WonBackChurner from "./pages/campaigns/WonBackChurner";
+import TaskManager from "./pages/TaskManager";
+import CVMFlowPage from "./pages/cvm/CVMFlowPage";
+import GAFlowManagement from "./pages/cvm/GAFlowManagement";
+import DroperTracking from "./pages/cvm/DroperTracking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <MainLayout />
@@ -41,21 +50,29 @@ const App = () => (
               <Route path="metric/:metricId" element={<MetricDetail />} />
               <Route path="base-preparation" element={<BasePreparation />} />
               <Route path="base-preparation/table/:tableName" element={<TableDetailPage />} />
-              <Route path="campaigns/cbe" element={<CBECampaign />} />
-              <Route path="campaigns/winback" element={<WinbackChurner />} />
-              <Route path="campaigns/sql-library" element={<SQLQueryLibrary />} />
-              <Route path="campaigns/ga-pin-reset/pin-reset" element={<PinReset />} />
+              <Route path="tables/schema" element={<MySchemaPage />} />
+              <Route path="tables/saved" element={<SavedTablesPage />} />
+              <Route path="tables/schema/:tableName/view" element={<TableViewPage />} />
+              <Route path="tables/saved/:tableName/view" element={<TableViewPage />} />
+              <Route path="campaign/ccbe" element={<CCBECampaign />} />
+              <Route path="campaign/ga-pin-reset" element={<GAPinResetCampaign />} />
+              <Route path="campaign/won-back-churner" element={<WonBackChurner />} />
               <Route path="ops-support/court-issue" element={<CourtIssue />} />
               <Route path="ops-support/dormant-list" element={<DormantList />} />
-              <Route path="ops-support/dormant-list-performance" element={<DormantListPerformance />} />
               <Route path="ops-support/pinlock" element={<Pinlock />} />
+              <Route path="sql-query-library" element={<SQLQueryLibrary />} />
+              <Route path="sql-query/:queryId" element={<SQLQueryDetail />} />
+              <Route path="task-manager" element={<TaskManager />} />
+              <Route path="cvm/ga-flow-up" element={<GAFlowManagement />} />
+              <Route path="cvm/droper-tracking" element={<DroperTracking />} />
+              <Route path="cvm/:flowType" element={<CVMFlowPage />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
