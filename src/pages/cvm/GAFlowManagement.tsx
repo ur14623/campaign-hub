@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, RefreshCw, Download, Search, Clock, Save, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Download, Search, Clock, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,16 +16,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+interface ApiTableData {
+  table_name: string;
+  count: number;
+}
+
+interface ApiHistoryResponse {
+  status: string;
+  history: Record<string, ApiTableData[]>;
+}
 
 interface DailyTask {
   id: string;
@@ -50,98 +50,80 @@ interface WeeklySummary {
   notBuyBundle: number;
 }
 
-interface ActionPlan {
-  id: string;
-  date: string;
-  category: string;
-  tableName: string;
-  count: number;
-  campaign: string;
-  contactPerson: string;
-  status: string;
-}
+const ROWS_PER_PAGE = 10;
 
-interface AnalysisResult {
-  table: string;
-  count: number;
-  status: string;
-  saved?: boolean;
-}
+// Helper function to find table data by pattern
+const findTableData = (tables: ApiTableData[], pattern: string): { table: string; count: number } => {
+  const found = tables.find(t => t.table_name.toUpperCase().includes(pattern.toUpperCase()));
+  return found ? { table: found.table_name, count: found.count } : { table: "-", count: 0 };
+};
 
-interface AnalysisResponse {
-  status: string;
-  date_info: string;
-  results: AnalysisResult[];
-}
-
-const initialDailyTasks: DailyTask[] = [
-  {
-    id: "1",
-    date: "17-Jan",
-    gsmGa: { table: "GSM_GA_1_17", count: 455648 },
-    notRegistered: { table: "NOT_REG_JAN_1_17", count: 15278 },
-    registered: { table: "REG_JAN_1_17", count: 451582 },
-    received3Birr: { table: "REC_3B_JAN_1_17", count: 450725 },
-    notReceived3Birr: { table: "NOT_REC_3B_JAN_1_17", count: 857 },
-    utilized3Birr: { table: "USED_3B_JAN_1_17", count: 430504 },
-    notUtilized: { table: "NOT_USED_3B_JAN_1_17", count: 20221 },
-  },
-  {
-    id: "2",
-    date: "18-Jan",
-    gsmGa: { table: "GSM_GA_1_18", count: 462150 },
-    notRegistered: { table: "NOT_REG_JAN_1_18", count: 14520 },
-    registered: { table: "REG_JAN_1_18", count: 458230 },
-    received3Birr: { table: "REC_3B_JAN_1_18", count: 457100 },
-    notReceived3Birr: { table: "NOT_REC_3B_JAN_1_18", count: 1130 },
-    utilized3Birr: { table: "USED_3B_JAN_1_18", count: 438920 },
-    notUtilized: { table: "NOT_USED_3B_JAN_1_18", count: 18180 },
-  },
-  {
-    id: "3",
-    date: "19-Jan",
-    gsmGa: { table: "GSM_GA_1_19", count: 470320 },
-    notRegistered: { table: "NOT_REG_JAN_1_19", count: 13890 },
-    registered: { table: "REG_JAN_1_19", count: 465430 },
-    received3Birr: { table: "REC_3B_JAN_1_19", count: 464200 },
-    notReceived3Birr: { table: "NOT_REC_3B_JAN_1_19", count: 1230 },
-    utilized3Birr: { table: "USED_3B_JAN_1_19", count: 445100 },
-    notUtilized: { table: "NOT_USED_3B_JAN_1_19", count: 19100 },
-  },
-];
-
-const initialActionPlans: ActionPlan[] = [
-  { id: "1", date: "17-Jan", category: "NOT REGIS", tableName: "NOT_REG_JAN_1_17", count: 15278, campaign: "Welcome Campaign", contactPerson: "", status: "PLANNED" },
-  { id: "2", date: "17-Jan", category: "NOT RECEIVED", tableName: "NOT_REC_3B_JAN_1_17", count: 857, campaign: "Reward", contactPerson: "", status: "PLANNED" },
-  { id: "3", date: "17-Jan", category: "NOT BUY BUNDLE", tableName: "NOT_USED_3B_JAN_1_17", count: 20221, campaign: "PIN Reset", contactPerson: "", status: "PLANNED" },
-  { id: "4", date: "18-Jan", category: "NOT REGIS", tableName: "NOT_REG_JAN_1_18", count: 14520, campaign: "Welcome Campaign", contactPerson: "", status: "IN PROGRESS" },
-  { id: "5", date: "18-Jan", category: "NOT RECEIVED", tableName: "NOT_REC_3B_JAN_1_18", count: 1130, campaign: "Reward", contactPerson: "", status: "COMPLETED" },
-];
-
-const categories = ["NOT REGIS", "NOT RECEIVED", "NOT BUY BUNDLE", "UTILIZED", "OTHER"];
-const statuses = ["PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED"];
+// Transform API response to DailyTask array
+const transformApiData = (history: Record<string, ApiTableData[]>): DailyTask[] => {
+  return Object.entries(history).map(([dateStr, tables], index) => {
+    // Parse date and format it
+    const date = new Date(dateStr);
+    const formattedDate = format(date, "dd-MMM");
+    
+    return {
+      id: String(index + 1),
+      date: formattedDate,
+      gsmGa: findTableData(tables, "GSM_GA"),
+      notRegistered: findTableData(tables, "NOT_REG"),
+      registered: findTableData(tables, "REG_MPESA"),
+      received3Birr: findTableData(tables, "REC_3B"),
+      notReceived3Birr: findTableData(tables, "NOT_REC_3B"),
+      utilized3Birr: findTableData(tables, "USED_3B"),
+      notUtilized: findTableData(tables, "NOT_USED_3B"),
+    };
+  }).sort((a, b) => {
+    // Sort by date descending
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+};
 
 export default function GAFlowManagement() {
-  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(initialDailyTasks);
-  const [actionPlans, setActionPlans] = useState<ActionPlan[]>(initialActionPlans);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const navigate = useNavigate();
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  
-  // Create Flow Dialog State
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [postFix, setPostFix] = useState("");
-  const [dateType, setDateType] = useState<"fixed" | "range">("fixed");
-  const [dateVal1, setDateVal1] = useState("");
-  const [dateVal2, setDateVal2] = useState("");
-  const [analysisResults, setAnalysisResults] = useState<AnalysisResponse | null>(null);
-  const [savingTable, setSavingTable] = useState<string | null>(null);
   
   // Search states for each table
   const [dailyTaskSearch, setDailyTaskSearch] = useState("");
   const [summarySearch, setSummarySearch] = useState("");
-  const [actionPlanSearch, setActionPlanSearch] = useState("");
+
+  // Pagination states
+  const [dailyTaskPage, setDailyTaskPage] = useState(1);
+  const [summaryPage, setSummaryPage] = useState(1);
+
+  // Fetch data from API
+  const fetchData = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:5000/get_ga_funnel_history");
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      const data: ApiHistoryResponse = await response.json();
+      
+      if (data.status === "success" && data.history) {
+        const transformedData = transformApiData(data.history);
+        setDailyTasks(transformedData);
+        setLastRefresh(new Date());
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast.error("Failed to load data from API");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Calculate weekly summary from daily tasks (auto-updates when dailyTasks changes)
   const weeklySummary: WeeklySummary[] = useMemo(() => {
@@ -190,19 +172,29 @@ export default function GAFlowManagement() {
     );
   }, [weeklySummary, summarySearch]);
 
-  const filteredActionPlans = useMemo(() => {
-    if (!actionPlanSearch) return actionPlans;
-    const search = actionPlanSearch.toLowerCase();
-    return actionPlans.filter(plan =>
-      plan.date.toLowerCase().includes(search) ||
-      plan.category.toLowerCase().includes(search) ||
-      plan.tableName.toLowerCase().includes(search) ||
-      plan.campaign.toLowerCase().includes(search) ||
-      plan.contactPerson.toLowerCase().includes(search) ||
-      plan.status.toLowerCase().includes(search) ||
-      String(plan.count).includes(search)
-    );
-  }, [actionPlans, actionPlanSearch]);
+  // Paginated data
+  const paginatedDailyTasks = useMemo(() => {
+    const start = (dailyTaskPage - 1) * ROWS_PER_PAGE;
+    return filteredDailyTasks.slice(start, start + ROWS_PER_PAGE);
+  }, [filteredDailyTasks, dailyTaskPage]);
+
+  const paginatedSummary = useMemo(() => {
+    const start = (summaryPage - 1) * ROWS_PER_PAGE;
+    return filteredSummary.slice(start, start + ROWS_PER_PAGE);
+  }, [filteredSummary, summaryPage]);
+
+  // Total pages
+  const totalDailyTaskPages = Math.ceil(filteredDailyTasks.length / ROWS_PER_PAGE);
+  const totalSummaryPages = Math.ceil(filteredSummary.length / ROWS_PER_PAGE);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setDailyTaskPage(1);
+  }, [dailyTaskSearch]);
+
+  useEffect(() => {
+    setSummaryPage(1);
+  }, [summarySearch]);
 
   // Refresh handlers
   const handleRefreshClick = () => {
@@ -214,23 +206,7 @@ export default function GAFlowManagement() {
     setIsRefreshing(true);
 
     try {
-      // Simulate API call to reload data
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Simulate refreshed data (in real app, fetch from API)
-      const refreshedTasks = initialDailyTasks.map(task => ({
-        ...task,
-        gsmGa: { ...task.gsmGa, count: task.gsmGa.count + Math.floor(Math.random() * 1000) },
-        notRegistered: { ...task.notRegistered, count: task.notRegistered.count + Math.floor(Math.random() * 100) },
-        registered: { ...task.registered, count: task.registered.count + Math.floor(Math.random() * 500) },
-        received3Birr: { ...task.received3Birr, count: task.received3Birr.count + Math.floor(Math.random() * 500) },
-        notReceived3Birr: { ...task.notReceived3Birr, count: task.notReceived3Birr.count + Math.floor(Math.random() * 50) },
-        utilized3Birr: { ...task.utilized3Birr, count: task.utilized3Birr.count + Math.floor(Math.random() * 400) },
-        notUtilized: { ...task.notUtilized, count: task.notUtilized.count + Math.floor(Math.random() * 200) },
-      }));
-
-      setDailyTasks(refreshedTasks);
-      setLastRefresh(new Date());
+      await fetchData();
       toast.success("Data refreshed successfully");
     } catch (error) {
       toast.error("Failed to refresh data. Please try again.");
@@ -244,25 +220,6 @@ export default function GAFlowManagement() {
   };
 
   // Export functions
-  const exportToExcel = (data: any[], filename: string, headers: string[]) => {
-    const csvContent = [
-      headers.join(","),
-      ...data.map(row => headers.map(h => {
-        const key = h.toLowerCase().replace(/\s+/g, '');
-        return row[key] ?? row[h] ?? '';
-      }).join(","))
-    ].join("\n");
-    
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${filename}_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`${filename} exported successfully`);
-  };
-
   const exportDailyTasks = () => {
     const data = filteredDailyTasks.map(task => ({
       Date: task.date,
@@ -283,7 +240,7 @@ export default function GAFlowManagement() {
     }));
     
     const csv = [
-      Object.keys(data[0]).join(","),
+      Object.keys(data[0] || {}).join(","),
       ...data.map(row => Object.values(row).join(","))
     ].join("\n");
     
@@ -309,7 +266,7 @@ export default function GAFlowManagement() {
     }));
     
     const csv = [
-      Object.keys(data[0]).join(","),
+      Object.keys(data[0] || {}).join(","),
       ...data.map(row => Object.values(row).join(","))
     ].join("\n");
     
@@ -322,203 +279,20 @@ export default function GAFlowManagement() {
     toast.success("Summary data exported");
   };
 
-  const exportActionPlans = () => {
-    const data = filteredActionPlans.map(p => ({
-      Date: p.date,
-      Category: p.category,
-      "Table Name": p.tableName,
-      Count: p.count,
-      Campaign: p.campaign,
-      "Contact Person": p.contactPerson,
-      Status: p.status,
-    }));
-    
-    const csv = [
-      Object.keys(data[0]).join(","),
-      ...data.map(row => Object.values(row).join(","))
-    ].join("\n");
-    
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `action_plans_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    toast.success("Action Plans exported");
-  };
-
-  // Action Plan CRUD
-  const handleActionPlanChange = (id: string, field: keyof ActionPlan, value: string | number) => {
-    setActionPlans(prev => prev.map(plan =>
-      plan.id === id ? { ...plan, [field]: value } : plan
-    ));
-  };
-
-  const addActionPlan = () => {
-    const newId = String(Date.now());
-    const newPlan: ActionPlan = {
-      id: newId,
-      date: "",
-      category: "NOT REGIS",
-      tableName: "",
-      count: 0,
-      campaign: "",
-      contactPerson: "",
-      status: "PLANNED",
-    };
-    setActionPlans([...actionPlans, newPlan]);
-    toast.success("New action plan row added");
-  };
-
-  const deleteActionPlan = (id: string) => {
-    setActionPlans(prev => prev.filter(plan => plan.id !== id));
-    toast.success("Action plan deleted");
-  };
-
-  // Create Flow Analysis handlers
   const handleCreateFlow = () => {
-    setShowCreateDialog(true);
-    setPostFix("");
-    setDateType("fixed");
-    setDateVal1("");
-    setDateVal2("");
-    setAnalysisResults(null);
-  };
-
-  const handleRunAnalysis = async () => {
-    if (!postFix.trim()) {
-      toast.error("Please enter a post fix value");
-      return;
-    }
-    if (!dateVal1) {
-      toast.error("Please select a start date");
-      return;
-    }
-    if (dateType === "range" && !dateVal2) {
-      toast.error("Please select an end date for range");
-      return;
-    }
-
-    setIsAnalyzing(true);
-
-    try {
-      const requestBody: {
-        post_fix: string;
-        date_type: "fixed" | "range";
-        date_val_1: string;
-        date_val_2?: string;
-      } = {
-        post_fix: postFix,
-        date_type: dateType,
-        date_val_1: dateVal1,
-      };
-
-      if (dateType === "range") {
-        requestBody.date_val_2 = dateVal2;
-      }
-
-      const response = await fetch("http://127.0.0.1:5000/trigger_ga_funnel_analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: AnalysisResponse = await response.json();
-
-      setAnalysisResults(data);
-      toast.success("Analysis completed successfully");
-    } catch (error) {
-      console.error("Analysis error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to run analysis. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleSaveResult = async (tableName: string, count: number) => {
-    setSavingTable(tableName);
-    
-    try {
-      const response = await fetch("http://127.0.0.1:5000/save_single_funnel_result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: tableName, count }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      setAnalysisResults(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          results: prev.results.map(r =>
-            r.table === tableName ? { ...r, saved: true } : r
-          ),
-        };
-      });
-      
-      toast.success(data.message || `${tableName} saved successfully`);
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error(error instanceof Error ? error.message : `Failed to save ${tableName}`);
-    } finally {
-      setSavingTable(null);
-    }
-  };
-
-  const handleSaveAll = async () => {
-    if (!analysisResults?.results) return;
-    
-    setSavingTable("all");
-    
-    try {
-      const resultsToSave = analysisResults.results
-        .filter(r => !r.saved)
-        .map(r => ({ table: r.table, count: r.count }));
-
-      if (resultsToSave.length === 0) {
-        toast.info("All results are already saved");
-        return;
-      }
-
-      const response = await fetch("http://127.0.0.1:5000/save_ga_funnel_results", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results: resultsToSave }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      setAnalysisResults(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          results: prev.results.map(r => ({ ...r, saved: true })),
-        };
-      });
-      
-      toast.success(data.message || "All results saved successfully");
-    } catch (error) {
-      console.error("Save all error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save all results");
-    } finally {
-      setSavingTable(null);
-    }
+    navigate("/cvm/ga-flow-up/create");
   };
 
   const formatNumber = (num: number) => num.toLocaleString();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">
@@ -528,7 +302,7 @@ export default function GAFlowManagement() {
           <h1 className="text-2xl font-bold">GA Flow Management</h1>
           <div className="flex items-center gap-2 mt-1 text-muted-foreground">
             <Clock className="h-4 w-4" />
-            <span>Last Refresh: {format(lastRefresh, "MMM dd, yyyy HH:mm:ss")}</span>
+            <span>Last Refresh: {lastRefresh ? format(lastRefresh, "MMM dd, yyyy HH:mm:ss") : "Never"}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -604,7 +378,7 @@ export default function GAFlowManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredDailyTasks.map((task) => (
+              {paginatedDailyTasks.map((task) => (
                 <tr key={task.id} className="hover:bg-muted/20">
                   <td className="border border-border px-3 py-2 font-medium">{task.date}</td>
                   <td className="border border-border px-2 py-2 text-xs font-mono bg-blue-50/50 dark:bg-blue-900/10">{task.gsmGa.table}</td>
@@ -625,8 +399,36 @@ export default function GAFlowManagement() {
               ))}
             </tbody>
           </table>
-          {filteredDailyTasks.length === 0 && (
+          {paginatedDailyTasks.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">No data matching search criteria</div>
+          )}
+          {/* Pagination */}
+          {totalDailyTaskPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <span className="text-sm text-muted-foreground">
+                Page {dailyTaskPage} of {totalDailyTaskPages} ({filteredDailyTasks.length} records)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDailyTaskPage(p => Math.max(1, p - 1))}
+                  disabled={dailyTaskPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDailyTaskPage(p => Math.min(totalDailyTaskPages, p + 1))}
+                  disabled={dailyTaskPage === totalDailyTaskPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -668,7 +470,7 @@ export default function GAFlowManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredSummary.map((summary, idx) => (
+              {paginatedSummary.map((summary, idx) => (
                 <tr key={idx} className="hover:bg-muted/20">
                   <td className="border border-border px-4 py-2 font-medium">{summary.date}</td>
                   <td className="border border-border px-4 py-2 text-right font-mono">{formatNumber(summary.gsmGa)}</td>
@@ -693,145 +495,37 @@ export default function GAFlowManagement() {
               </tr>
             </tbody>
           </table>
-          {filteredSummary.length === 0 && (
+          {paginatedSummary.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">No data matching search criteria</div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* BLOCK 3: Action Plan Table (Manual CRUD) */}
-      <Card>
-        <CardHeader className="bg-accent/20">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="text-lg">3️⃣ ACTION PLAN TABLE</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={actionPlanSearch}
-                  onChange={(e) => setActionPlanSearch(e.target.value)}
-                  className="pl-8 h-9 w-48"
-                />
+          {/* Pagination */}
+          {totalSummaryPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <span className="text-sm text-muted-foreground">
+                Page {summaryPage} of {totalSummaryPages} ({filteredSummary.length} records)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSummaryPage(p => Math.max(1, p - 1))}
+                  disabled={summaryPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSummaryPage(p => Math.min(totalSummaryPages, p + 1))}
+                  disabled={summaryPage === totalSummaryPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={exportActionPlans} className="gap-1">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-muted/50">
-                <th className="border border-border px-4 py-3 text-left font-semibold w-24">DATE</th>
-                <th className="border border-border px-4 py-3 text-left font-semibold w-36">CATEGORY</th>
-                <th className="border border-border px-4 py-3 text-left font-semibold">TABLE NAME</th>
-                <th className="border border-border px-4 py-3 text-right font-semibold w-28">COUNT</th>
-                <th className="border border-border px-4 py-3 text-left font-semibold">CAMPAIGN</th>
-                <th className="border border-border px-4 py-3 text-left font-semibold w-36">CONTACT PERSON</th>
-                <th className="border border-border px-4 py-3 text-left font-semibold w-32">STATUS</th>
-                <th className="border border-border px-4 py-3 text-center font-semibold w-16">ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredActionPlans.map((plan) => (
-                <tr key={plan.id} className="hover:bg-muted/20">
-                  <td className="border border-border px-2 py-1">
-                    <Input
-                      value={plan.date}
-                      onChange={(e) => handleActionPlanChange(plan.id, 'date', e.target.value)}
-                      className="h-8 text-sm w-20"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Select
-                      value={plan.category}
-                      onValueChange={(value) => handleActionPlanChange(plan.id, 'category', value)}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Input
-                      value={plan.tableName}
-                      onChange={(e) => handleActionPlanChange(plan.id, 'tableName', e.target.value)}
-                      className="h-8 text-xs font-mono"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Input
-                      type="number"
-                      value={plan.count}
-                      onChange={(e) => handleActionPlanChange(plan.id, 'count', parseInt(e.target.value) || 0)}
-                      className="h-8 text-xs text-right"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Input
-                      value={plan.campaign}
-                      onChange={(e) => handleActionPlanChange(plan.id, 'campaign', e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Input
-                      value={plan.contactPerson}
-                      onChange={(e) => handleActionPlanChange(plan.id, 'contactPerson', e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <Select
-                      value={plan.status}
-                      onValueChange={(value) => handleActionPlanChange(plan.id, 'status', value)}
-                    >
-                      <SelectTrigger className={`h-8 text-xs ${
-                        plan.status === 'COMPLETED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                        plan.status === 'IN PROGRESS' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                        plan.status === 'CANCELLED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                      }`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        {statuses.map(status => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="border border-border px-2 py-1 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => deleteActionPlan(plan.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredActionPlans.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground">No action plans matching search criteria</div>
           )}
-          <div className="p-3 border-t border-border">
-            <Button variant="outline" size="sm" onClick={addActionPlan}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Action Plan Row
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -850,170 +544,6 @@ export default function GAFlowManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Create Flow Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New GA Funnel Analysis</DialogTitle>
-            <DialogDescription>
-              Configure and trigger a new GA funnel analysis. Results will be displayed below.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            {/* Request Form */}
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="postFix">Post Fix</Label>
-                <Input
-                  id="postFix"
-                  placeholder="e.g., JAN_22 or WEEK_3"
-                  value={postFix}
-                  onChange={(e) => setPostFix(e.target.value.toUpperCase())}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Date Type</Label>
-                <RadioGroup
-                  value={dateType}
-                  onValueChange={(value) => setDateType(value as "fixed" | "range")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fixed" id="fixed" />
-                    <Label htmlFor="fixed" className="font-normal cursor-pointer">Fixed Date</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="range" id="range" />
-                    <Label htmlFor="range" className="font-normal cursor-pointer">Date Range</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="dateVal1">{dateType === "fixed" ? "Date" : "Start Date"}</Label>
-                  <Input
-                    id="dateVal1"
-                    type="date"
-                    value={dateVal1}
-                    onChange={(e) => setDateVal1(e.target.value)}
-                  />
-                </div>
-                {dateType === "range" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="dateVal2">End Date</Label>
-                    <Input
-                      id="dateVal2"
-                      type="date"
-                      value={dateVal2}
-                      onChange={(e) => setDateVal2(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <Button 
-                onClick={handleRunAnalysis} 
-                disabled={isAnalyzing}
-                className="w-full sm:w-auto"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Running Analysis...
-                  </>
-                ) : (
-                  "Run Analysis"
-                )}
-              </Button>
-            </div>
-
-            {/* Results Table */}
-            {analysisResults && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">Analysis Results</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Status: <span className="text-green-600 font-medium">{analysisResults.status}</span> | 
-                      Date Info: {analysisResults.date_info}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleSaveAll}
-                    disabled={analysisResults.results.every(r => r.saved)}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save All
-                  </Button>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-muted/50">
-                        <th className="border-b px-4 py-3 text-left font-semibold">Table</th>
-                        <th className="border-b px-4 py-3 text-right font-semibold">Count</th>
-                        <th className="border-b px-4 py-3 text-center font-semibold">Status</th>
-                        <th className="border-b px-4 py-3 text-center font-semibold">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analysisResults.results.map((result, index) => (
-                        <tr key={index} className="border-b last:border-b-0 hover:bg-muted/30">
-                          <td className="px-4 py-3 font-mono text-sm">{result.table}</td>
-                          <td className="px-4 py-3 text-right font-medium">{formatNumber(result.count)}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              result.status === "Success" 
-                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
-                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                            }`}>
-                              {result.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {result.saved ? (
-                              <span className="text-sm text-muted-foreground">Saved ✓</span>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSaveResult(result.table, result.count)}
-                                disabled={savingTable === result.table}
-                              >
-                                {savingTable === result.table ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <Save className="h-4 w-4 mr-1" />
-                                    Save
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
