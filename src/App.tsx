@@ -26,6 +26,7 @@ import WonBackChurner from "./pages/campaigns/WonBackChurner";
 import TaskManager from "./pages/TaskManager";
 import CVMFlowPage from "./pages/cvm/CVMFlowPage";
 import GAFlowManagement from "./pages/cvm/GAFlowManagement";
+import CreateFlowPage from "./pages/cvm/CreateFlowPage";
 import DroperTracking from "./pages/cvm/DroperTracking";
 import PinResetTracking from "./pages/cvm/PinResetTracking";
 import UnutilizedBalanceTracking from "./pages/cvm/UnutilizedBalanceTracking";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="sql-query/:queryId" element={<SQLQueryDetail />} />
               <Route path="task-manager" element={<TaskManager />} />
               <Route path="cvm/ga-flow-up" element={<GAFlowManagement />} />
+              <Route path="cvm/ga-flow-up/create" element={<CreateFlowPage />} />
               <Route path="cvm/droper-tracking" element={<DroperTracking />} />
               <Route path="cvm/pin-reset" element={<PinResetTracking />} />
               <Route path="cvm/unutilized-balance" element={<UnutilizedBalanceTracking />} />
